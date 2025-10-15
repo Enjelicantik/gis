@@ -1,1 +1,44 @@
-{"type":"FeatureCollection","features":[{"type":"Feature","properties":{"name":"Dusun 4 Karumba"},"geometry":{"coordinates":[120.00445559796316,-0.7291292276733117],"type":"Point"}},{"type":"Feature","properties":{"name":"Rumah Enjel"},"geometry":{"coordinates":[120.00444051051278,-0.7287945777204783],"type":"Point"}},{"type":"Feature","properties":{"name":"Home Area"},"geometry":{"coordinates":[[[120.0043232937141,-0.7287598176193057],[120.00434436033811,-0.7289669559965688],[120.00455502657991,-0.7289259964308172],[120.00451991554064,-0.7287211985986346],[120.0043232937141,-0.7287598176193057]]],"type":"Polygon"},"id":2}]}
+{
+	"type": "FeatureCollection",
+	"features": [
+		{
+			"type": "Feature",
+			"properties": { "name": "Dusun 4 Karumba", "type": "marker" },
+			"geometry": { "type": "Point", "coordinates": [120.00445559796316, -0.7291292276733117] }
+		},
+		{
+			"type": "Feature",
+			"properties": { "name": "Rumah Enjel", "type": "marker" },
+			"geometry": { "type": "Point", "coordinates": [120.00444051051278, -0.7287945777204783] }
+		},
+		{
+			"type": "Feature",
+			"properties": { "name": "Main Road (example)", "type": "line" },
+			"geometry": {
+				"type": "LineString",
+				"coordinates": [
+					[120.004200, -0.728600],
+					[120.004350, -0.728900],
+					[120.004550, -0.728930]
+				]
+			}
+		},
+		{
+			"type": "Feature",
+			"properties": { "name": "Home Area", "type": "polygon" },
+			"geometry": {
+				"type": "Polygon",
+				"coordinates": [
+					[
+						[120.0043232937141, -0.7287598176193057],
+						[120.00434436033811, -0.7289669559965688],
+						[120.00455502657991, -0.7289259964308172],
+						[120.00451991554064, -0.7287211985986346],
+						[120.0043232937141, -0.7287598176193057]
+					]
+				]
+			},
+			"id": 2
+		}
+	]
+}
