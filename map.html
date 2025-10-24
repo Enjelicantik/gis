@@ -84,48 +84,122 @@
             return { color: '#3388ff', weight: 2, fillColor: '#3388ff', fillOpacity: 0.2 };
         }
 
-        // Load GeoJSON and split into overlay layers
-        fetch('map.geojson')
-            .then(res => res.json())
-            .then(data => {
-                data.features.forEach(function(feature){
-                    var geomType = feature.geometry && feature.geometry.type;
-                    var props = feature.properties || {};
-                    var popupText = props.name || JSON.stringify(props);
+        // Embedded GeoJSON fallback (used when fetching the file is blocked,
+        // e.g. when opening the HTML via file://). This is a small convenience
+        // — when you serve the folder over HTTP the loader will still try to
+        // fetch `map.geojson` first.
+        var EMBEDDED_GEOJSON = {
+            "type": "FeatureCollection",
+            "features": []
+        };
 
-                    if(geomType === 'Point'){
-                        var coords = feature.geometry.coordinates;
-                        // Leaflet uses [lat, lng]
-                        var marker = L.marker([coords[1], coords[0]]).bindPopup(popupText);
-                        markersLayer.addLayer(marker);
-                    } else if(geomType === 'LineString'){
-                        var latlngs = feature.geometry.coordinates.map(function(c){ return [c[1], c[0]]; });
-                        var polyline = L.polyline(latlngs, styleLine(feature)).bindPopup(popupText);
-                        linesLayer.addLayer(polyline);
-                    } else if(geomType === 'Polygon'){
-                        var latlngs = feature.geometry.coordinates.map(function(ring){ return ring.map(function(c){ return [c[1], c[0]]; }); });
-                        var polygon = L.polygon(latlngs, stylePolygon(feature)).bindPopup(popupText);
-                        polygonsLayer.addLayer(polygon);
+        // Try to populate EMBEDDED_GEOJSON with the data generated alongside this page
+        // (we'll replace it below with the actual data if available).
+
+        // Generic loader that tries fetch(url) then falls back to EMBEDDED_GEOJSON.
+        function loadGeoJSON(url, onSuccess){
+            fetch(url)
+                .then(function(res){
+                    if(!res.ok) throw new Error('Network response not ok');
+                    return res.json();
+                })
+                .then(onSuccess)
+                .catch(function(err){
+                    console.warn('Could not load ' + url + ', using embedded fallback. Error:', err);
+                    if(EMBEDDED_GEOJSON && EMBEDDED_GEOJSON.type === 'FeatureCollection'){
+                        onSuccess(EMBEDDED_GEOJSON);
                     } else {
-                        // fallback: add via geoJSON for any other type
-                        L.geoJSON(feature, {
-                            onEachFeature: function(f, layer){ layer.bindPopup(popupText); }
-                        }).addTo(map);
+                        console.error('No embedded GeoJSON available to fall back to.');
                     }
                 });
+        }
 
-                // Add overlays to map by default
-                markersLayer.addTo(map);
-                linesLayer.addTo(map);
-                polygonsLayer.addTo(map);
+        // Replace the empty EMBEDDED_GEOJSON with actual inline data so the map
+        // works when opened locally. This mirrors the contents of `map.geojson`.
+        EMBEDDED_GEOJSON = {
+    "type": "FeatureCollection",
+    "features": [
+        {
+            "type": "Feature",
+            "properties": { "name": "Dusun 4 Karumba", "type": "marker" },
+            "geometry": { "type": "Point", "coordinates": [120.00445559796316, -0.7291292276733117] }
+        },
+        {
+            "type": "Feature",
+            "properties": { "name": "Rumah Enjel", "type": "marker" },
+            "geometry": { "type": "Point", "coordinates": [120.00444051051278, -0.7287945777204783] }
+        },
+        {
+            "type": "Feature",
+            "properties": { "name": "Main Road (example)", "type": "line" },
+            "geometry": {
+                "type": "LineString",
+                "coordinates": [
+                    [120.004200, -0.728600],
+                    [120.004350, -0.728900],
+                    [120.004550, -0.728930]
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": { "name": "Home Area", "type": "polygon" },
+            "geometry": {
+                "type": "Polygon",
+                "coordinates": [
+                    [
+                        [120.0043232937141, -0.7287598176193057],
+                        [120.00434436033811, -0.7289669559965688],
+                        [120.00455502657991, -0.7289259964308172],
+                        [120.00451991554064, -0.7287211985986346],
+                        [120.0043232937141, -0.7287598176193057]
+                    ]
+                ]
+            },
+            "id": 2
+        }
+    ]
+};
 
-                // Fit map to all features if any
-                var all = L.featureGroup([markersLayer, linesLayer, polygonsLayer]);
-                if(all.getLayers().length > 0){
-                    map.fitBounds(all.getBounds(), { padding: [20,20] });
+        // Load GeoJSON and split into overlay layers (works with fetch or embedded fallback)
+        loadGeoJSON('map.geojson', function(data){
+            data.features.forEach(function(feature){
+                var geomType = feature.geometry && feature.geometry.type;
+                var props = feature.properties || {};
+                var popupText = props.name || JSON.stringify(props);
+
+                if(geomType === 'Point'){
+                    var coords = feature.geometry.coordinates;
+                    // Leaflet uses [lat, lng]
+                    var marker = L.marker([coords[1], coords[0]]).bindPopup(popupText);
+                    markersLayer.addLayer(marker);
+                } else if(geomType === 'LineString'){
+                    var latlngs = feature.geometry.coordinates.map(function(c){ return [c[1], c[0]]; });
+                    var polyline = L.polyline(latlngs, styleLine(feature)).bindPopup(popupText);
+                    linesLayer.addLayer(polyline);
+                } else if(geomType === 'Polygon'){
+                    var latlngs = feature.geometry.coordinates.map(function(ring){ return ring.map(function(c){ return [c[1], c[0]]; }); });
+                    var polygon = L.polygon(latlngs, stylePolygon(feature)).bindPopup(popupText);
+                    polygonsLayer.addLayer(polygon);
+                } else {
+                    // fallback: add via geoJSON for any other type
+                    L.geoJSON(feature, {
+                        onEachFeature: function(f, layer){ layer.bindPopup(popupText); }
+                    }).addTo(map);
                 }
-            })
-            .catch(err => console.log('Could not load map.geojson:', err));
+            });
+
+            // Add overlays to map by default
+            markersLayer.addTo(map);
+            linesLayer.addTo(map);
+            polygonsLayer.addTo(map);
+
+            // Fit map to all features if any
+            var all = L.featureGroup([markersLayer, linesLayer, polygonsLayer]);
+            if(all.getLayers().length > 0){
+                map.fitBounds(all.getBounds(), { padding: [20,20] });
+            }
+        });
 
         // Secondary map (EPSG:4326) kept as a comparison view in the second container
         var map2 = L.map('map2', {crs: L.CRS.EPSG4326}).setView(center, 13);
@@ -136,16 +210,14 @@
             attribution: '© terrestris, OpenStreetMap contributors'
         }).addTo(map2);
 
-        // Also add GeoJSON to map2 using simple geoJSON layer so popups still work there
-        fetch('map.geojson')
-            .then(res => res.json())
-            .then(data => {
-                L.geoJSON(data, {
-                    onEachFeature: function(feature, layer){
-                        layer.bindPopup(feature.properties && feature.properties.name);
-                    }
-                }).addTo(map2);
-            });
+        // Also add GeoJSON to map2 using the loader so popups still work there
+        loadGeoJSON('map.geojson', function(data){
+            L.geoJSON(data, {
+                onEachFeature: function(feature, layer){
+                    layer.bindPopup(feature.properties && feature.properties.name);
+                }
+            }).addTo(map2);
+        });
     </script>
 </body>
 </html>

@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Leaflet Map with GeoJSON</title>
+    
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    
+    <style>
+        #map {
+            height: 100vh;
+            width: 100%;
+            
+        }
+        .custom-popup {
+            max-width: 300px;
+        }
+        .custom-popup h3 {
+            margin: 0 0 10px 0;
+            color: #333;
+        }
+        .custom-popup p {
+            margin: 0 0 5px 0;
+        }
+    </style>
+</head>
+<body>
+    <div id="map"></div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    
+    <script>
+        // Initialize the map
+        const map = L.map('map').setView([120.00445559796316, -0.7291292276733117], 17); // Centered on first point
+
+        // Add base layers
+        const osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors'
+        });
+
+        const satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+            attribution: '© Esri'
+        });
+
+        // Base layers definition
+        const baseMaps = {
+            "OpenStreetMap": osmLayer,
+            "Satellite": satelliteLayer
+        };
+
+        // Add the default base layer
+        osmLayer.addTo(map);
+
+        // Create layer groups for different feature types
+        const markersLayer = L.layerGroup();
+        const polylineLayer = L.layerGroup();
+        const polygonLayer = L.layerGroup();
+
+        // Custom icon for markers
+        const customIcon = L.icon({
+            iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
+            shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
+            iconSize: [25, 41],
+            iconAnchor: [12, 41],
+            popupAnchor: [1, -34],
+            shadowSize: [41, 41]
+        });
+
+        // Function to style features
+        function styleFeature(feature) {
+            switch (feature.properties.type) {
+                case 'line':
+                    return {
+                        color: 'red',
+                        weight: 3
+                    };
+                case 'polygon':
+                    return {
+                        color: 'blue',
+                        fillColor: '#3388ff',
+                        fillOpacity: 0.2,
+                        weight: 2
+                    };
+                default:
+                    return {};
+            }
+        }
+
+        // Function to create popups
+        function createPopup(feature, layer) {
+            if (feature.properties && feature.properties.name) {
+                layer.bindTooltip(feature.properties.name);
+                layer.bindPopup(`
+                    <div class="custom-popup">
+                        <h3>${feature.properties.name}</h3>
+                        <p>Type: ${feature.properties.type}</p>
+                    </div>
+                `);
+            }
+        }
+
+        // Load GeoJSON data
+        fetch('map.geojson')
+            .then(response => response.json())
+            .then(data => {
+                // Process each feature
+                L.geoJSON(data, {
+                    style: styleFeature,
+                    pointToLayer: function(feature, latlng) {
+                        if (feature.properties.type === 'marker') {
+                            return L.marker(latlng, { icon: customIcon });
+                        }
+                    },
+                    onEachFeature: function(feature, layer) {
+                        createPopup(feature, layer);
+                        
+                        // Add to appropriate layer group
+                        switch (feature.properties.type) {
+                            case 'marker':
+                                markersLayer.addLayer(layer);
+                                break;
+                            case 'line':
+                                polylineLayer.addLayer(layer);
+                                break;
+                            case 'polygon':
+                                polygonLayer.addLayer(layer);
+                                break;
+                        }
+
+                        // Add hover events
+                        layer.on('mouseover', function(e) {
+                            this.openTooltip();
+                        });
+                        layer.on('mouseout', function(e) {
+                            this.closeTooltip();
+                        });
+                    }
+                });
+
+                // Add layers to map
+                markersLayer.addTo(map);
+                polylineLayer.addTo(map);
+                polygonLayer.addTo(map);
+
+                // Fit map bounds to show all features
+                const bounds = L.latLngBounds([]);
+                markersLayer.eachLayer(layer => bounds.extend(layer.getLatLng()));
+                polylineLayer.eachLayer(layer => bounds.extend(layer.getBounds()));
+                polygonLayer.eachLayer(layer => bounds.extend(layer.getBounds()));
+                map.fitBounds(bounds, { padding: [50, 50] });
+            })
+            .catch(error => console.error('Error loading GeoJSON:', error));
+    </script>
+</body>
+</html>
